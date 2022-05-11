@@ -73,14 +73,7 @@ public struct SMA<Coordinate> where Coordinate: SMACoordinate {
             iteration += 1
         }
         
-        // Keep the mold in the box
-        for i in population.indices {
-            if population[i].position > space.upperBound {
-                population[i].position = space.upperBound
-            } else if population[i].position < space.lowerBound {
-                population[i].position = space.lowerBound
-            }
-        }
+        containCells()
         
         // Evaluate fitness
         for i in population.indices {
@@ -106,9 +99,8 @@ public struct SMA<Coordinate> where Coordinate: SMACoordinate {
             population[i].weight = w(population[i], index: i)
         }
         
-        let r = Double.random(in: 0...1)
-//        if false {
         // A small chance for fully random search improves general exploration in large solution spaces or with smaller populations
+        let r = Double.random(in: 0...1)
         if r < z {
             for i in population.indices {
                 var cell = population[i]
@@ -150,8 +142,7 @@ public struct SMA<Coordinate> where Coordinate: SMACoordinate {
             }
         }
         
-        // Keep the mold in the box
-
+        containCells()
         
         return true
     }

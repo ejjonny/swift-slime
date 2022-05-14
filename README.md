@@ -17,5 +17,4 @@ Searching for the global maxima of
 
 # TODO:
 - Readme walkthrough of the math used in the algorithm
-- Cool readme
 - Explore some deterministic changes

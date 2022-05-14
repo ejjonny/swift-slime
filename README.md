@@ -7,7 +7,8 @@ The only dependency required by Slime is `SwiftNumerics`
 # Animated Example
 Searching for the global maxima of 
 `-abs(x + 100000) - abs(y + 100000) + sin(10 * x)`
- <img src="/ex1.gif?raw=true" width="200px">
+
+ <img src="/ex1.gif?raw=true" width="500px">
 
 
 # More Info

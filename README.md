@@ -1,4 +1,4 @@
-# SwiftSMA
+# Slime
 
 This is a Swift implementation of a Slime Mold Algorithm generally based on the paper "Slime mould algorithm: A new method for stochastic optimization" by  Li, Shimin; Chen, Huiling; Wang, Mingjing; Heidari, Ali Asghar; Mirjalili, Seyedali
 

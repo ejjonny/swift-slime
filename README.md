@@ -4,6 +4,9 @@ This is a Swift implementation of a Slime Mold Algorithm generally based on the 
 
 The only dependency required by Slime is `SwiftNumerics`
 
+Animated example of the algorithm searching for the global maxima of `-abs(x + 100000) - abs(y + 100000) + sin(10 * x)`
+https://user-images.githubusercontent.com/17223924/168451391-75d5eafc-65f3-4672-b783-add31ff595db.mov
+
 
 *(from wikiversity)[https://en.wikiversity.org/wiki/Slime_Mould_Algorithm]*
 

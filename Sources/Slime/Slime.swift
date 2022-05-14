@@ -24,6 +24,7 @@ public struct Slime {
     let method: Method
     let bestCount: Int
     let problemSize: Int
+    /// The best solutions discovered - populated when iterations are ran
     public var bestCells = [Cell]()
     public var evaluations = 0
     
@@ -38,13 +39,18 @@ public struct Slime {
     var currentWorst: Cell {
         population.last!
     }
-    /// Initialize a new algorithm
+    
+    /// Initialize a Slime algorithm object
     /// - Parameters:
-    ///   - populationSize: Number of cells searching for food. Will greatly effect fitness evaluation count.
-    ///   - space: The solution space the cells will be constrained to.
-    ///   - maxIterations: The number of iterations to perform.
-    ///   - fitnessEvaluation: A closure that models the quality of a solution - or in SM terms - how much a cell can smell food.
-    ///   - z: A threshold indicating the probability for the population to randomly "forage" as opposed to closing in on potential optima in any given iteration
+    ///   - populationSize: Number of searching "cells". Evaluation count will be up to `maxIterations x populationSize`
+    ///   - maxIterations: Number of iterations before the algorithm will finish
+    ///   - lowerBound: Vector representing lower bound of solution space.
+    ///   - upperBound: Vector representing upper bound of solution space. Vector component count must match lowerBound
+    ///   - z: A threshold in [0, 1] indicating the probability for the population to fully randomize their positions on any given iteration. This can improve searches in large search spaces / with small populations
+    ///   - method: `.maximize`- higher fitness numbers are better vs. `.minimize` - lower fitness values are better
+    ///   - bestCount: The size of the list of candidates with good fitness
+    ///   - metaData: An object to track things like search history if needed
+    ///   - fitnessEvaluation: A closure returning the fitness for an individual solution
     public init(
         populationSize: Int,
         maxIterations: Int,
@@ -74,12 +80,16 @@ public struct Slime {
         self.metaData = metaData
     }
     
+    /// Run the search up to max iterations
     public mutating func run() {
         var i = 1
         while iterateOnce(&i) == true {}
     }
     
     @discardableResult
+    /// Run a single iteration
+    /// - Parameter iteration: Iteration counter. This shouldn't be modified by the caller right now - if it is I don't know what to expect.
+    /// - Returns: A boolean indicating whether there are iterations left to perform
     public mutating func iterateOnce(_ iteration: inout Int) -> Bool {
         guard iteration < maxIterations else {
             return false
@@ -156,6 +166,7 @@ public struct Slime {
                     if exploreOrExploit > exploreValue {
                         
                         // explore
+                        // Vibrate using a random percentage of one 100th of the search space
                         cell.position[component] = cell.position[component] + linearVibration * ((upperBound[component] - lowerBound[component]) / 100.0)
                         
                         // the original implementation tends towards zero too much. why search the origin so much?

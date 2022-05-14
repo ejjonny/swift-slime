@@ -4,24 +4,24 @@
 import PackageDescription
 
 let package = Package(
-    name: "SMA",
+    name: "Slime",
     products: [
         .library(
-            name: "SMA",
-            targets: ["SMA"]),
+            name: "Slime",
+            targets: ["Slime"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-numerics", from: "1.0.0"),
     ],
     targets: [
         .target(
-            name: "SMA",
+            name: "Slime",
             dependencies: [
                 .product(name: "Numerics", package: "swift-numerics"),
             ]
         ),
         .testTarget(
-            name: "SMATests",
-            dependencies: ["SMA"]),
+            name: "SlimeTests",
+            dependencies: ["Slime"]),
     ]
 )

@@ -1,0 +1,249 @@
+import Numerics
+
+public struct Slime {
+    public struct Cell: Equatable {
+        public var position: Vector
+        public var fitness: Double
+        public var weight: Double
+        public var id = String.uid
+    }
+    public struct MetaData {
+        public var history = [Cell]()
+        public init() {}
+    }
+    public enum Method {
+        case minimize
+        case maximize
+    }
+    public var population: [Cell]
+    public let upperBound: Vector
+    public let lowerBound: Vector
+    public let maxIterations: Int
+    let fitnessEvaluation: (Vector) -> Double
+    let z: Double
+    let method: Method
+    let bestCount: Int
+    let problemSize: Int
+    public var bestCells = [Cell]()
+    public var evaluations = 0
+    
+    public var metaData: MetaData?
+    
+    var best: Cell {
+        bestCells.first!
+    }
+    var currentBest: Cell {
+        population.first!
+    }
+    var currentWorst: Cell {
+        population.last!
+    }
+    /// Initialize a new algorithm
+    /// - Parameters:
+    ///   - populationSize: Number of cells searching for food. Will greatly effect fitness evaluation count.
+    ///   - space: The solution space the cells will be constrained to.
+    ///   - maxIterations: The number of iterations to perform.
+    ///   - fitnessEvaluation: A closure that models the quality of a solution - or in SM terms - how much a cell can smell food.
+    ///   - z: A threshold indicating the probability for the population to randomly "forage" as opposed to closing in on potential optima in any given iteration
+    public init(
+        populationSize: Int,
+        maxIterations: Int,
+        lowerBound: Vector,
+        upperBound: Vector,
+        z: Double = 0.3,
+        method: Method = .maximize,
+        bestCount: Int = 3,
+        metaData: MetaData? = nil,
+        fitnessEvaluation: @escaping (Vector) -> Double
+    ) {
+        self.population = (0..<populationSize).map { _ in
+            Cell(
+                position: Vector.random(lb: lowerBound, ub: upperBound),
+                fitness: -1,
+                weight: 1
+            )
+        }
+        self.upperBound = upperBound
+        self.lowerBound = lowerBound
+        self.maxIterations = maxIterations
+        self.fitnessEvaluation = fitnessEvaluation
+        self.z = z
+        self.method = method
+        self.bestCount = bestCount
+        self.problemSize = upperBound.components.count
+        self.metaData = metaData
+    }
+    
+    public mutating func run() {
+        var i = 1
+        while iterateOnce(&i) == true {}
+    }
+    
+    @discardableResult
+    public mutating func iterateOnce(_ iteration: inout Int) -> Bool {
+        guard iteration < maxIterations else {
+            return false
+        }
+        defer {
+            iteration += 1
+        }
+        
+        containCells()
+        
+        // Evaluate fitness
+        for i in population.indices {
+            var cell = population[i]
+            evaluations += 1
+            
+            switch method {
+            case .minimize:
+                cell.fitness = -fitnessEvaluation(cell.position)
+            case .maximize:
+                cell.fitness = fitnessEvaluation(cell.position)
+            }
+            
+            // Update best
+            if bestCells.isEmpty {
+                bestCells.append(cell)
+            }
+            
+            for i in bestCells.indices {
+                let best = bestCells[i]
+                if cell.fitness > best.fitness {
+                    bestCells.insert(cell, at: i)
+                }
+                bestCells = Array(bestCells.prefix(bestCount))
+            }
+
+            population[i] = cell
+        }
+        
+        // Sort fitness - current iteration best & worst are accessible via sorted
+        population = population.sorted { a, b in
+            a.fitness >  b.fitness
+        }
+        
+        // Update weights (Fig. 2.5)
+        for i in population.indices {
+            population[i].weight = w(population[i], index: i)
+        }
+        
+        // A small chance for fully random search improves general exploration in large solution spaces or with smaller populations
+        let r = Double.random(in: 0...1)
+        if r < z {
+            for i in population.indices {
+                var cell = population[i]
+                cell.position = Vector.random(lb: lowerBound, ub: upperBound)
+                population[i] = cell
+            }
+        } else {
+            let aVibrationAmount = aggressiveVibrationAmount(iteration)
+            let lVibrationAmount = linearVibrationAmount(iteration)
+            for i in population.indices {
+                var cell = population[i]
+                // p tends towards 0 when cells are more fit - therefore a fit cell is more likely to "exploit"
+                // an unfit cell is more likely to explore elsewhere
+                //
+                // these work in tandem. without the possibility of exploration cells will get stuck on local optima
+                let exploreOrExploit = Double.random(in: 0...1)
+                let exploreValue = chanceToExplore(cell)
+                
+                for component in 0...problemSize - 1 {
+
+                    let aggressiveVibration = Double.random(in: -aVibrationAmount...aVibrationAmount)
+                    let linearVibration = Double.random(in: -lVibrationAmount...lVibrationAmount)
+
+                    if exploreOrExploit > exploreValue {
+                        
+                        // explore
+                        cell.position[component] = cell.position[component] + linearVibration * ((upperBound[component] - lowerBound[component]) / 100.0)
+                        
+                        // the original implementation tends towards zero too much. why search the origin so much?
+//                        cell.position[component] = linearVibration * cell.position[component]
+                    } else {
+                        
+                        let randomCellA = population.randomElement()!
+                        let randomCellB = population.randomElement()!
+                        // exploit
+                        // Aggressive initial vibration is suitable here because it is much less likely that we are near global optima early in the algorithm
+                        cell.position[component] = best.position[component] + aggressiveVibration * (cell.weight * randomCellA.position[component] - randomCellB.position[component])
+                    }
+                }
+                population[i] = cell
+            }
+        }
+        
+        containCells()
+        
+        if metaData != nil {
+            recordMetaData()
+        }
+        
+        return true
+    }
+    
+    /// simulates oscillation in mold based on a cell's fitness relative to the population
+    /// higher relative fitness should result in higher allocation of energy for movement
+    /// the value returned from this method revolves around 1
+    func w(_ cell: Cell, index: Int) -> Double {
+        let r = Double.random(in: 0...1)
+        let l = valueRelativeToPopulation(cell)
+        if index <= population.count / 2 {
+            return 1 + r * l
+        } else {
+            return 1 - r * l
+        }
+    }
+    
+    /// inverse hyperbolic tangent curve from .infinity to zero at max iteration
+    func aggressiveVibrationAmount(_ iteration: Int) -> Double {
+        Double.atanh(-(Double(iteration) / Double(maxIterations)) + 1)
+    }
+    
+    /// a linear curve from one to zero at max iteration
+    func linearVibrationAmount(_ iteration: Int) -> Double {
+        1 - (Double(iteration) / Double(maxIterations))
+    }
+    
+    /// a hyperbolic tangent curve from 1 to 0 at best fitness
+    /// cells with good fitness are less likely to explore, more likely to exploit nearby
+    func chanceToExplore(_ cell: Cell) -> Double {
+        abs(Double.tanh(cell.fitness - currentBest.fitness))
+    }
+    
+    /// logarithmic curve from ~0.3 to zero at best fitness
+    func valueRelativeToPopulation(_ cell: Cell) -> Double {
+        let distanceFromBest = currentBest.fitness - cell.fitness
+        let populationRange = currentBest.fitness - currentWorst.fitness
+        let epsilon = 0.1
+        let l = Double.log10((distanceFromBest / (populationRange + epsilon)) + 1)
+        assert(!l.isNaN)
+        return l
+    }
+    
+    /// keep the mold in the box
+    mutating func containCells() {
+        for cellIndex in population.indices {
+            var cell = population[cellIndex]
+            for i in cell.position.components.indices {
+                if cell.position[i] > upperBound[i] {
+                    cell.position[i] = upperBound[i]
+                } else if cell.position[i] < lowerBound[i] {
+                    cell.position[i] = lowerBound[i]
+                } else if cell.position[i].isNaN {
+                    cell.position[i] = lowerBound[i]
+                }
+            }
+            population[cellIndex] = cell
+        }
+    }
+    
+    mutating func recordMetaData() {
+        let unique: [Cell] = population.indices.compactMap {
+            var cell = population[$0]
+            cell.id = String.uid
+            return cell
+        }
+        metaData?.history.append(contentsOf: unique)
+    }
+}

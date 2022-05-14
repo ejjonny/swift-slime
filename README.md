@@ -11,6 +11,5 @@ The only dependency required by SwiftSMA is `SwiftNumerics`
 
 TODO:
 - Readme walkthrough of the math used in the algorithm
-- Introduce a Vector type with any number of components (to better support optimization problems with many inputs. Slime mold enters HYPERSPACE)
-- Tests & benchmark tests
+- Cool readme
 - Explore some deterministic changes

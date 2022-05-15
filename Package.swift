@@ -4,11 +4,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "Slime",
+    name: "swift-slime",
     products: [
         .library(
             name: "Slime",
-            targets: ["Slime"]),
+            targets: [
+                "Slime"
+            ]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-numerics", from: "1.0.0"),
@@ -22,6 +25,9 @@ let package = Package(
         ),
         .testTarget(
             name: "SlimeTests",
-            dependencies: ["Slime"]),
+            dependencies: [
+                "Slime"
+            ]
+        ),
     ]
 )

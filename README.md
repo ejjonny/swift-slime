@@ -31,7 +31,7 @@ Add Slime as a dependency for your target:
 ),
 ```
 
-Add `import Slime`to your swift file.
+Add `import Slime` to your swift file.
 
 ```swift
 var slime = Slime(

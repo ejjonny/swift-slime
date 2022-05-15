@@ -1,6 +1,6 @@
 # Slime
 
-This is a Swift implementation of a Slime Mold Algorithm generally based on the paper "Slime mould algorithm: A new method for stochastic optimization" by  Li, Shimin; Chen, Huiling; Wang, Mingjing; Heidari, Ali Asghar; Mirjalili, Seyedali
+This is a Swift implementation of a Slime Mold Algorithm - a stochastic optimizer - generally based on this (paper)[https://doi.org/10.1016/j.future.2020.03.055]
 
 The only dependency required by Slime is `SwiftNumerics`
 

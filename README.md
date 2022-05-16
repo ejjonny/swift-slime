@@ -4,11 +4,15 @@ This is a Swift implementation of a Slime Mold Algorithm - a stochastic optimize
 
 The only dependency required by Slime is `SwiftNumerics`
 
-# Animated Example
+# Visual Examples
 Searching for the global maxima of 
 `-abs(x + 100000) - abs(y + 100000) + sin(10 * x)`
 
  <img src="/ex1.gif?raw=true" width="500px">
+ 
+Searching for the shortest path visiting 50 locations (traveling salesman)
+
+ <img src="/ex2.gif?raw=true" width="500px">
 
 # Use the Slime
 

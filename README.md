@@ -12,7 +12,7 @@ Searching for the global maxima of
  
 Searching for the shortest path visiting 50 locations (traveling salesman)
 
- <img src="/ex1.gif?raw=true" width="500px">
+ <img src="/ex2.gif?raw=true" width="500px">
 
 # Use the Slime
 

@@ -1,42 +1,42 @@
 import Numerics
 
-public struct Slime {
-    public struct Cell: Equatable {
-        public var position: Vector
-        public var fitness: Double
-        public var weight: Double
-        public var id = String.uid
-    }
+public struct Cell<Component>: Equatable where Component: SlimeComponent {
+    public var position: Vector<Component>
+    public var fitness: Double
+    public var weight: Double
+    public var id = String.uid
+}
+public struct Slime<Component> where Component: SlimeComponent  {
     public struct MetaData {
-        public var history = [Cell]()
+        public var history = [Cell<Component>]()
         public init() {}
     }
     public enum Method {
         case minimize
         case maximize
     }
-    public var population: [Cell]
-    public let upperBound: Vector
-    public let lowerBound: Vector
+    public var population: [Cell<Component>]
+    public let problemRange: [ClosedRange<Component>]
     public let maxIterations: Int
-    let fitnessEvaluation: (Vector) -> Double
+    let fitnessEvaluation: (Vector<Component>) -> Double
+    var fitnessCache = [Vector<Component>: Double]()
     let z: Double
     let method: Method
     let bestCount: Int
     let problemSize: Int
     /// The best solutions discovered - populated when iterations are ran
-    public var bestCells = [Cell]()
+    public var bestCells = [Cell<Component>]()
     public var evaluations = 0
     
     public var metaData: MetaData?
     
-    var best: Cell {
+    var best: Cell<Component> {
         bestCells.first!
     }
-    var currentBest: Cell {
+    var currentBest: Cell<Component> {
         population.first!
     }
-    var currentWorst: Cell {
+    var currentWorst: Cell<Component> {
         population.last!
     }
     
@@ -54,29 +54,27 @@ public struct Slime {
     public init(
         populationSize: Int,
         maxIterations: Int,
-        lowerBound: Vector,
-        upperBound: Vector,
+        problemRange: [ClosedRange<Component>],
         z: Double = 0.3,
         method: Method = .maximize,
         bestCount: Int = 3,
         metaData: MetaData? = nil,
-        fitnessEvaluation: @escaping (Vector) -> Double
+        fitnessEvaluation: @escaping (Vector<Component>) -> Double
     ) {
         self.population = (0..<populationSize).map { _ in
-            Cell(
-                position: Vector.random(lb: lowerBound, ub: upperBound),
+            Cell<Component>(
+                position: Vector.random(in: problemRange),
                 fitness: -1,
                 weight: 1
             )
         }
-        self.upperBound = upperBound
-        self.lowerBound = lowerBound
         self.maxIterations = maxIterations
+        self.problemRange = problemRange
         self.fitnessEvaluation = fitnessEvaluation
         self.z = z
         self.method = method
         self.bestCount = bestCount
-        self.problemSize = upperBound.components.count
+        self.problemSize = problemRange.count
         self.metaData = metaData
     }
     
@@ -105,11 +103,17 @@ public struct Slime {
             var cell = population[i]
             evaluations += 1
             
-            switch method {
-            case .minimize:
-                cell.fitness = -fitnessEvaluation(cell.position)
-            case .maximize:
-                cell.fitness = fitnessEvaluation(cell.position)
+            if let cached = fitnessCache[cell.position] {
+                cell.fitness = cached
+            } else {
+                switch method {
+                case .minimize:
+                    cell.fitness = -fitnessEvaluation(cell.position)
+                case .maximize:
+                    cell.fitness = fitnessEvaluation(cell.position)
+                }
+                
+                fitnessCache[cell.position] = cell.fitness
             }
             
             // Update best
@@ -119,7 +123,8 @@ public struct Slime {
             
             for i in bestCells.indices {
                 let best = bestCells[i]
-                if cell.fitness > best.fitness {
+                if cell.fitness > best.fitness,
+                   !bestCells.contains(where: { $0.position == cell.position }){
                     bestCells.insert(cell, at: i)
                 }
                 bestCells = Array(bestCells.prefix(bestCount))
@@ -143,7 +148,7 @@ public struct Slime {
         if r < z {
             for i in population.indices {
                 var cell = population[i]
-                cell.position = Vector.random(lb: lowerBound, ub: upperBound)
+                cell.position = Vector.random(in: problemRange)
                 population[i] = cell
             }
         } else {
@@ -158,7 +163,7 @@ public struct Slime {
                 let exploreOrExploit = Double.random(in: 0...1)
                 let exploreValue = chanceToExplore(cell)
                 
-                for component in 0...problemSize - 1 {
+                for component in problemRange.indices {
 
                     let aggressiveVibration = Double.random(in: -aVibrationAmount...aVibrationAmount)
                     let linearVibration = Double.random(in: -lVibrationAmount...lVibrationAmount)
@@ -167,7 +172,9 @@ public struct Slime {
                         
                         // explore
                         // Vibrate using a random percentage of one 100th of the search space
-                        cell.position[component] = cell.position[component] + linearVibration * ((upperBound[component] - lowerBound[component]) / 100.0)
+                        let movementSize = (problemRange[component].upperBound.doubleValue - problemRange[component].lowerBound.doubleValue) / 100.0
+                        let scaled = linearVibration * movementSize
+                        cell.position[component] = cell.position[component] + Component(scaled)
                         
                         // the original implementation tends towards zero too much. why search the origin so much?
 //                        cell.position[component] = linearVibration * cell.position[component]
@@ -177,7 +184,9 @@ public struct Slime {
                         let randomCellB = population.randomElement()!
                         // exploit
                         // Aggressive initial vibration is suitable here because it is much less likely that we are near global optima early in the algorithm
-                        cell.position[component] = best.position[component] + aggressiveVibration * (cell.weight * randomCellA.position[component] - randomCellB.position[component])
+                        let movementSize = (cell.weight * Double(randomCellA.position[component]) - Double(randomCellB.position[component]))
+                        let scaled = aggressiveVibration * movementSize
+                        cell.position[component] = best.position[component] + Component(scaled)
                     }
                 }
                 population[i] = cell
@@ -196,7 +205,7 @@ public struct Slime {
     /// simulates oscillation in mold based on a cell's fitness relative to the population
     /// higher relative fitness should result in higher allocation of energy for movement
     /// the value returned from this method revolves around 1
-    func w(_ cell: Cell, index: Int) -> Double {
+    func w(_ cell: Cell<Component>, index: Int) -> Double {
         let r = Double.random(in: 0...1)
         let l = valueRelativeToPopulation(cell)
         if index <= population.count / 2 {
@@ -218,12 +227,12 @@ public struct Slime {
     
     /// a hyperbolic tangent curve from 1 to 0 at best fitness
     /// cells with good fitness are less likely to explore, more likely to exploit nearby
-    func chanceToExplore(_ cell: Cell) -> Double {
+    func chanceToExplore(_ cell: Cell<Component>) -> Double {
         abs(Double.tanh(cell.fitness - currentBest.fitness))
     }
     
     /// logarithmic curve from ~0.3 to zero at best fitness
-    func valueRelativeToPopulation(_ cell: Cell) -> Double {
+    func valueRelativeToPopulation(_ cell: Cell<Component>) -> Double {
         let distanceFromBest = currentBest.fitness - cell.fitness
         let populationRange = currentBest.fitness - currentWorst.fitness
         let epsilon = 0.1
@@ -237,12 +246,12 @@ public struct Slime {
         for cellIndex in population.indices {
             var cell = population[cellIndex]
             for i in cell.position.components.indices {
-                if cell.position[i] > upperBound[i] {
-                    cell.position[i] = upperBound[i]
-                } else if cell.position[i] < lowerBound[i] {
-                    cell.position[i] = lowerBound[i]
+                if cell.position[i] > problemRange[i].upperBound {
+                    cell.position[i] = problemRange[i].upperBound
+                } else if cell.position[i] < problemRange[i].lowerBound {
+                    cell.position[i] = problemRange[i].lowerBound
                 } else if cell.position[i].isNaN {
-                    cell.position[i] = lowerBound[i]
+                    cell.position[i] = problemRange[i].lowerBound
                 }
             }
             population[cellIndex] = cell
@@ -250,7 +259,7 @@ public struct Slime {
     }
     
     mutating func recordMetaData() {
-        let unique: [Cell] = population.indices.compactMap {
+        let unique: [Cell<Component>] = population.indices.compactMap {
             var cell = population[$0]
             cell.id = String.uid
             return cell

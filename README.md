@@ -21,7 +21,7 @@ In a SwiftPM project:
 Add the following line to the dependencies in your Package.swift file:
 
 ```swift
-.package(url: "https://github.com/ejjonny/slime", from: "1.0.0"),
+.package(url: "https://github.com/ejjonny/slime", from: "2.0.0"),
 ```
 
 Add Slime as a dependency for your target:
@@ -41,8 +41,8 @@ Add `import Slime` to your swift file.
 var slime = Slime(
                 populationSize: 10,
                 maxIterations: 100,
-                lowerBound: [-1, -1],
-                upperBound: [1, 1],
+                lower: SIMD2(-1, -1),
+                upper: SIMD2(1, 1),
                 method: .minimize, // Use .maximize if higher fitness values are better
                 fitnessEvaluation: { vector in
                     let x = vector[0]

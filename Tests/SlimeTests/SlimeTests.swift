@@ -1,157 +1,182 @@
 import XCTest
+import simd
 @testable import Slime
 
 final class SlimeTests: XCTestCase {
-    typealias SlimeClosure = (_ pop: Int, _ iter: Int, _ lb: Vector, _ ub: Vector) -> Slime
     let pop = 10
     let iter = 100
-    let runs = 10
-    
-    let bukinSl: SlimeClosure = {
-        Slime(
-            populationSize: $0,
-            maxIterations: $1,
-            lowerBound: $2,
-            upperBound: $3,
-            method: .minimize,
-            fitnessEvaluation: {
+    let runs = 100
+
+    func testBukin() throws {
+        let target = SIMD2(-10.0, 1.0)
+        var loss = [Double]()
+        for _ in 1...runs {
+            var slime = Slime(
+                populationSize: pop,
+                maxIterations: iter,
+                lower: SIMD2(-15.0, -3.0),
+                upper: SIMD2(-5.0, 3.0),
+                method: .minimize
+            ) {
                 let x1 = $0[0]
                 let x2 = $0[1]
                 let expr1 = 100 * sqrt(abs(x2 - 0.01 * pow(x1, 2)))
                 let expr2 = 0.01 * abs(x1 + 10)
                 return expr1 + expr2
             }
-        )
-    }
-    
-    func testBukin() throws {
-        let mdn = bench(
-            bukinSl,
-            [-15, -3],
-            [-5, 3],
-            targets: [-10, 1]
-        )
+            slime.run()
+            let off = simd_distance(target, slime.best.position)
+            loss.append(off)
+        }
+        let avg = loss.avg
+        let mdn = loss.mdn
+        print("********")
+        print("Avg distance from optima: \(avg)")
+        print("Median distance from optima: \(mdn)")
+
         assert(mdn < 5.1)
     }
     
-    let crossInTray: SlimeClosure = {
-        Slime(
-            populationSize: $0,
-            maxIterations: $1,
-            lowerBound: $2,
-            upperBound: $3,
-            method: .minimize,
-            fitnessEvaluation: {
+    func testCrossInTray() throws {
+        let targets = [
+            SIMD2(1.3491, -1.3491),
+            SIMD2(1.3491, 1.3491),
+            SIMD2(-1.3491, 1.3491),
+            SIMD2(-1.3491, -1.3491)
+        ]
+        var loss = [Double]()
+        for _ in 1...runs {
+            var slime = Slime(
+                populationSize: pop,
+                maxIterations: iter,
+                lower: SIMD2(-10.0, -10.0),
+                upper: SIMD2(10.0, 10.0),
+                method: .minimize
+            ) {
                 let x1 = $0[0]
                 let x2 = $0[1]
                 let t1 = sin(x1) * sin(x2)
                 let t2 = exp(abs(100 - sqrt(pow(x1, 2) + pow(x2, 2)) / .pi))
                 return -0.0001 * pow((abs(t1 * t2) + 1), 0.1)
             }
-        )
-    }
-    
-    func testCrossInTray() {
-        let mdn = bench(
-            crossInTray,
-            [-10, -10],
-            [10, 10],
-            targets: [1.3491, -1.3491],
-            [1.3491, 1.3491],
-            [-1.3491, 1.3491],
-            [-1.3491, -1.3491]
-        )
+            slime.run()
+            let closest = targets
+                .sorted { targetA, targetB in
+                    simd_distance(targetA, slime.best.position) < simd_distance(targetB, slime.best.position)
+                }
+                .first!
+            let off = simd_distance(closest, slime.best.position)
+            loss.append(off)
+        }
+        let avg = loss.avg
+        let mdn = loss.mdn
+        print("********")
+        print("Avg distance from optima: \(avg)")
+        print("Median distance from optima: \(mdn)")
+
         assert(mdn < 0.028)
     }
-    
-    let dropWave: SlimeClosure = {
-        Slime(
-            populationSize: $0,
-            maxIterations: $1,
-            lowerBound: $2,
-            upperBound: $3,
-            method: .minimize,
-            fitnessEvaluation: {
+
+    func testDropWave() throws {
+        let target = SIMD2(0.0, 0.0)
+        var loss = [Double]()
+        for _ in 1...runs {
+            var slime = Slime(
+                populationSize: pop,
+                maxIterations: iter,
+                lower: SIMD2(-5.12, -5.12),
+                upper: SIMD2(5.12, 5.12),
+                method: .minimize
+            ) {
                 let x1 = $0[0]
                 let x2 = $0[1]
                 let t1 = 1 + cos(12 * sqrt(pow(x1, 2) + pow(x2, 2)))
                 let t2 = 0.5 * (pow(x1, 2) + pow(x2, 2)) + 2
                 return -t1 / t2
             }
-        )
-    }
-    
-    func testDropWave() throws {
-        let mdn = bench(
-            dropWave,
-            [-5.12, -5.12],
-            [5.12, 5.12],
-            targets: [0, 0]
-        )
+            slime.run()
+            let off = simd_distance(target, slime.best.position)
+            loss.append(off)
+        }
+        let avg = loss.avg
+        let mdn = loss.mdn
+        print("********")
+        print("Avg distance from optima: \(avg)")
+        print("Median distance from optima: \(mdn)")
+
         assert(mdn < 0.53)
     }
     
-    let egg: SlimeClosure = {
-        Slime(
-            populationSize: $0,
-            maxIterations: $1,
-            lowerBound: $2,
-            upperBound: $3,
-            method: .minimize,
-            fitnessEvaluation: {
+    func testEgg() throws {
+        let target = SIMD2(512.0, 404.2319)
+        var loss = [Double]()
+        for _ in 1...runs {
+            var slime = Slime(
+                populationSize: pop,
+                maxIterations: iter,
+                lower: SIMD2(-512, -512),
+                upper: SIMD2(512, 512),
+                method: .minimize
+            ) {
                 let x1 = $0[0]
                 let x2 = $0[1]
                 let t1 = -(x2 + 47) * sin(sqrt(abs(x2 + x1 / 2 + 47)))
                 let t2 = -x1 * sin(sqrt(abs(x1 - (x2 + 47))))
                 return t1 + t2
             }
-        )
-    }
-    
-    func testEgg() throws {
-        let mdn = bench(
-            egg,
-            [-512, -512],
-            [512, 512],
-            targets: [512, 404.2319]
-        )
+            slime.run()
+            let off = simd_distance(target, slime.best.position)
+            loss.append(off)
+        }
+        let avg = loss.avg
+        let mdn = loss.mdn
+        print("********")
+        print("Avg distance from optima: \(avg)")
+        print("Median distance from optima: \(mdn)")
+
         assert(mdn < 621)
     }
-    
-    let gramacyLee: SlimeClosure = {
-        Slime(
-            populationSize: $0,
-            maxIterations: $1,
-            lowerBound: $2,
-            upperBound: $3,
-            method: .minimize,
-            fitnessEvaluation: {
-                let x = $0[0]
+
+    func testGramacy() throws {
+        let target = 0.5486
+        var loss = [Double]()
+        for _ in 1...runs {
+            var slime = Slime(
+                populationSize: pop,
+                maxIterations: iter,
+                lower: 0.5,
+                upper: 2.5,
+                method: .minimize
+            ) {
+                let x = $0
                 let t1 = sin(10 * .pi * x) / (2 * x)
                 let t2 = pow((x - 1), 4)
                 return t1 + t2
             }
-        )
-    }
-    
-    func testGramacyLee() throws {
-        let mdn = bench(
-            gramacyLee,
-            [0.5],
-            [2.5],
-            targets: [0.5486]
-        )
+            slime.run()
+            let off = abs(target - slime.best.position)
+            loss.append(off)
+        }
+        let avg = loss.avg
+        let mdn = loss.mdn
+        print("********")
+        print("Avg distance from optima: \(avg)")
+        print("Median distance from optima: \(mdn)")
+
         assert(mdn < 0.0001)
     }
     
-    let rastigrin: SlimeClosure = {
-        Slime(
-            populationSize: $0,
-            maxIterations: $1,
-            lowerBound: $2,
-            upperBound: $3,
-            method: .minimize,
-            fitnessEvaluation: {
+    func testRastigrin() throws {
+        let target = SIMD3(0.0, 0.0, 0.0)
+        var loss = [Double]()
+        for _ in 1...runs {
+            var slime = Slime(
+                populationSize: pop,
+                maxIterations: iter,
+                lower: SIMD3(-5.12, -5.12, -5.12),
+                upper: SIMD3(5.12, 5.12, 5.12),
+                method: .minimize
+            ) {
                 var sum = 0.0
                 for i in 0...2 {
                     let xi = $0[i]
@@ -159,63 +184,17 @@ final class SlimeTests: XCTestCase {
                 }
                 return 10 * 3 + sum
             }
-        )
-    }
-    
-    func testRastigrin() throws {
-        let mdn = bench(
-            rastigrin,
-            [-5.12, -5.12, -5.12],
-            [5.12, 5.12, 5.12],
-            targets: [0, 0, 0]
-        )
-        assert(mdn < 2)
-    }
-    
-    @discardableResult
-    func bench(
-        _ slime: SlimeClosure,
-        pop: Int? = nil,
-        iter: Int? = nil,
-        _ lb: Vector,
-        _ ub: Vector,
-        targets: Vector...
-    ) -> Double {
-        var offs = [Double]()
-        for _ in 1...runs {
-            var slime = slime(pop ?? self.pop, iter ?? self.iter, lb, ub)
             slime.run()
-            let closest = targets
-                .sorted {
-                    let diff1 = Vector.distance(slime.bestCells.avg,$0)
-                    let diff2 = Vector.distance(slime.bestCells.avg,$1)
-                    return diff1 < diff2
-                }
-                .first!
-            let off = Vector.distance(slime.best.position, closest)
-            print(off)
-            offs.append(off)
+            let off = simd_distance(target, slime.best.position)
+            loss.append(off)
         }
-        let avg = offs.avg
-        let mdn = offs.mdn
+        let avg = loss.avg
+        let mdn = loss.mdn
         print("********")
         print("Avg distance from optima: \(avg)")
         print("Median distance from optima: \(mdn)")
-        return mdn
-    }
-}
 
-
-extension Vector {
-    static func distance(_ lhs: Self, _ rhs: Self) -> Double {
-        sqrt(zip(lhs.components, rhs.components).map { pow($0 - $1, 2) }.sum)
-    }
-    public static func -(lhs: Self, rhs: Self) -> Self {
-        .init(
-            zip(lhs.components, rhs.components).map {
-                $0 - $1
-            }
-        )
+        assert(mdn < 2)
     }
 }
 
@@ -235,15 +214,15 @@ extension Array where Element == Double {
     }
 }
 
-extension Array where Element == Slime.Cell {
-    var avg: Vector {
-        var components = [Double]()
-        for i in first!.position.components.indices {
-            components.append(self.map { $0.position[i] }.avg)
-        }
-        return .init(components)
-    }
-}
+//extension Array where Element == Slime<.Cell {
+//    var avg: Vector {
+//        var components = [Double]()
+//        for i in first!.position.components.indices {
+//            components.append(self.map { $0.position[i] }.avg)
+//        }
+//        return .init(components)
+//    }
+//}
 
 //    func testSelfOptimize() {
 //        var sl = Slime(

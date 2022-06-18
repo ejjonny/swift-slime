@@ -1,5 +1,4 @@
 import XCTest
-import simd
 @testable import Slime
 
 final class SlimeTests: XCTestCase {
@@ -25,7 +24,7 @@ final class SlimeTests: XCTestCase {
                 return expr1 + expr2
             }
             slime.run()
-            let off = simd_distance(target, slime.best.position)
+            let off = target.distance(slime.best.position)
             loss.append(off)
         }
         let avg = loss.avg
@@ -62,10 +61,10 @@ final class SlimeTests: XCTestCase {
             slime.run()
             let closest = targets
                 .sorted { targetA, targetB in
-                    simd_distance(targetA, slime.best.position) < simd_distance(targetB, slime.best.position)
+                    targetA.distance(slime.best.position) < targetB.distance(slime.best.position)
                 }
                 .first!
-            let off = simd_distance(closest, slime.best.position)
+            let off = closest.distance(slime.best.position)
             loss.append(off)
         }
         let avg = loss.avg
@@ -95,7 +94,7 @@ final class SlimeTests: XCTestCase {
                 return -t1 / t2
             }
             slime.run()
-            let off = simd_distance(target, slime.best.position)
+            let off = target.distance(slime.best.position)
             loss.append(off)
         }
         let avg = loss.avg
@@ -125,7 +124,7 @@ final class SlimeTests: XCTestCase {
                 return t1 + t2
             }
             slime.run()
-            let off = simd_distance(target, slime.best.position)
+            let off = target.distance(slime.best.position)
             loss.append(off)
         }
         let avg = loss.avg
@@ -185,7 +184,7 @@ final class SlimeTests: XCTestCase {
                 return 10 * 3 + sum
             }
             slime.run()
-            let off = simd_distance(target, slime.best.position)
+            let off = target.distance(slime.best.position)
             loss.append(off)
         }
         let avg = loss.avg
@@ -214,33 +213,8 @@ extension Array where Element == Double {
     }
 }
 
-//extension Array where Element == Slime<.Cell {
-//    var avg: Vector {
-//        var components = [Double]()
-//        for i in first!.position.components.indices {
-//            components.append(self.map { $0.position[i] }.avg)
-//        }
-//        return .init(components)
-//    }
-//}
-
-//    func testSelfOptimize() {
-//        var sl = Slime(
-//            populationSize: 10,
-//            lowerBound: [0, 0],
-//            upperBound: [1, 1],
-//            maxIterations: 100,
-//            method: .minimize,
-//            fitnessEvaluation: {
-//                let pop = $0[0]
-//                let iter = $0[1]
-//                return self.bench(
-//                    { _, _ in self.bukinSl(Int(pop * 100) + 1, Int(iter * 500) + 2) },
-//                    [-10, 1]
-//                )
-//            }
-//        )
-//        sl.run()
-//        print("SL")
-//        print(sl.globalBest!)
-//    }
+extension SIMD where Scalar == Double {
+    func distance(_ to: Self) -> Double {
+        sqrt(((self - to) * (self - to)).sum())
+    }
+}
